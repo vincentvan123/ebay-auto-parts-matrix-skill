@@ -417,7 +417,6 @@ def build_plp(
             terms = [
                 (f"{row['model']} {keyword}", phrase_match_type),
                 (f"{row['make']} {row['model']} {keyword}", phrase_match_type),
-                (f"{keyword} for {row['make']} {row['model']}", phrase_match_type),
             ]
             if include_years:
                 terms.extend(

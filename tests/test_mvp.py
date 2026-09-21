@@ -114,6 +114,7 @@ class MvpTests(unittest.TestCase):
         self.assertTrue(year_terms)
         self.assertEqual({row["Match Type"] for row in year_terms}, {"Exact"})
         self.assertEqual({row["Match Type"] for row in non_year_terms}, {"Phrase"})
+        self.assertFalse(any("for" in row["Keyword"].casefold().split() for row in plp))
 
     def test_plp_without_year_terms_uses_phrase_only(self):
         listings = [{
@@ -121,8 +122,12 @@ class MvpTests(unittest.TestCase):
             "fitment_rows": [{"make": "ExampleMake", "model": "ModelOne", "years": [2020, 2021]}],
         }]
         plp, _ = MVP.build_plp("SKU400", "Sample Part", listings, False, "Phrase", "Exact")
-        self.assertEqual(len(plp), 3)
+        self.assertEqual(len(plp), 2)
         self.assertEqual({row["Match Type"] for row in plp}, {"Phrase"})
+        self.assertEqual(
+            {row["Keyword"] for row in plp},
+            {"ModelOne Sample Part", "ExampleMake ModelOne Sample Part"},
+        )
 
     def test_small_leader_is_not_core(self):
         rules = {

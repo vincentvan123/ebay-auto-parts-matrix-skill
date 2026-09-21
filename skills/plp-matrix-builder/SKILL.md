@@ -7,7 +7,7 @@ description: Build Core and Discovery eBay PLP campaign, ad-group, keyword, matc
 
 1. Create one campaign per listing with deterministic names.
 2. Create one ad group per compatibility model.
-3. Generate model, make-model, and `for` terms as Phrase match.
+3. Generate model-product and make-model-product terms as Phrase match; never add the standalone word `for` to PLP keywords.
 4. Generate each configured year term as Exact match.
 5. Negate competing Core/model intents according to project rules.
 6. Deduplicate keywords case-insensitively within each ad group.
