@@ -7,6 +7,13 @@ description: Estimate effective vehicle population from age-adjusted U.S. sales 
 
 Use the bundled deterministic pipeline. Do not invent sales, compatibility, or missing model years.
 
+## User-facing language and privacy
+
+- Never expose a sales source provider, source URL, or internal source key in the web UI or any user-facing Excel, CSV, Markdown, or JSON output.
+- Keep source metadata only in the internal cache and refresh diagnostics.
+- Prefer Chinese labels in the web UI and user-facing exports.
+- Keep stable machine keys and established marketplace terms such as SKU, PLP, Listing, Core, Discovery, Mixed, Campaign, Ad Group, and Compatibility in English when they are clearer.
+
 ## Run the web tool
 
 1. Ensure Python 3.11+ is available.

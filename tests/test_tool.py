@@ -44,7 +44,10 @@ class ToolTests(unittest.TestCase):
         output_dir.mkdir(parents=True, exist_ok=True)
         try:
             (output_dir / "workbook_data.json").write_text(json.dumps({
-                "vehicle_ranking": [],
+                "vehicle_ranking": [{
+                    "Rank": 1, "Source": "Hidden", "Source URL": "https://example.test",
+                    "source_key": "internal", "source": "hidden", "source_url": "https://example.test",
+                }],
                 "listing_matrix": [
                     {"Listing Type": "Core"},
                     {"Listing Type": "Discovery"},
@@ -52,11 +55,34 @@ class ToolTests(unittest.TestCase):
                 ],
                 "plp_matrix": [],
             }), encoding="utf-8")
-            summary = TOOL.result_payload(sku)["summary"]
+            result = TOOL.result_payload(sku)
+            summary = result["summary"]
             self.assertEqual(summary["core_listings"], 1)
             self.assertEqual(summary["discovery_listings"], 1)
             self.assertEqual(summary["mixed_listings"], 1)
+            self.assertNotIn("Source", result["vehicle_ranking"][0])
+            self.assertNotIn("Source URL", result["vehicle_ranking"][0])
+            self.assertNotIn("source_key", result["vehicle_ranking"][0])
+            self.assertNotIn("source_url", result["vehicle_ranking"][0])
         finally:
+            (output_dir / "workbook_data.json").unlink(missing_ok=True)
+            output_dir.rmdir()
+
+    def test_result_payload_uses_chinese_workbook_name_and_label(self):
+        sku = "TEST-WORKBOOK-NAME"
+        output_dir = TOOL.ROOT / "outputs" / sku
+        output_dir.mkdir(parents=True, exist_ok=True)
+        workbook_name = f"{sku}-Listing与PLP矩阵.xlsx"
+        try:
+            (output_dir / "workbook_data.json").write_text(json.dumps({
+                "vehicle_ranking": [], "listing_matrix": [], "plp_matrix": [],
+            }), encoding="utf-8")
+            (output_dir / workbook_name).touch()
+            result = TOOL.result_payload(sku)
+            workbook = next(item for item in result["files"] if item["name"] == workbook_name)
+            self.assertEqual(workbook["label"], "下载 Excel")
+        finally:
+            (output_dir / workbook_name).unlink(missing_ok=True)
             (output_dir / "workbook_data.json").unlink(missing_ok=True)
             output_dir.rmdir()
 

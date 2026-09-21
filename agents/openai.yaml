@@ -1,4 +1,4 @@
 interface:
-  display_name: "eBay Auto Parts Matrix"
-  short_description: "Generate ranked eBay listings and PLP matrices"
-  default_prompt: "Use $ebay-auto-parts-matrix to generate a listing and PLP matrix for this auto-parts SKU."
+  display_name: "eBay 汽配矩阵"
+  short_description: "生成车型排名、Listing 与 PLP 矩阵"
+  default_prompt: "使用 $ebay-auto-parts-matrix 为这个汽配 SKU 生成 Listing 和 PLP 矩阵。"

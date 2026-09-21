@@ -19,4 +19,4 @@ fi
 
 python3 "$project_dir/scripts/build_workbook.py" \
   "$project_dir/outputs/$sku/workbook_data.json" \
-  "$project_dir/outputs/$sku/$sku-listing-plp-matrix.xlsx"
+  "$project_dir/outputs/$sku/$sku-Listing与PLP矩阵.xlsx"

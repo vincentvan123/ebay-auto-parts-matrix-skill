@@ -87,14 +87,14 @@ function renderResults(data) {
     `<div class="metric ${index === 5 && value ? 'warning' : ''}"><strong>${value}</strong><span>${label}</span></div>`
   ).join('');
 
-  const preferred = [`${data.sku}-listing-plp-matrix.xlsx`, 'listing_matrix.csv', 'vehicle_ranking.csv'];
+  const preferred = [`${data.sku}-Listing与PLP矩阵.xlsx`, 'listing_matrix.csv', 'vehicle_ranking.csv'];
   const fileRank = (name) => {
     const index = preferred.indexOf(name);
     return index === -1 ? preferred.length : index;
   };
   const files = [...data.files].sort((a, b) => fileRank(a.name) - fileRank(b.name));
   document.querySelector('#downloads').innerHTML = files.slice(0, 5).map(file =>
-    `<a class="download-link" href="${escapeHtml(file.url)}">${escapeHtml(file.name.endsWith('.xlsx') ? '下载 Excel' : file.name)}</a>`
+    `<a class="download-link" href="${escapeHtml(file.url)}">${escapeHtml(file.label || file.name)}</a>`
   ).join('');
 
   document.querySelector('#listings-panel').innerHTML = renderTable(data.listing_matrix, [

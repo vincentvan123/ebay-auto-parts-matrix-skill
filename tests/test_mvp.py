@@ -1,4 +1,6 @@
 import importlib.util
+import csv
+import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
@@ -27,6 +29,22 @@ class MvpTests(unittest.TestCase):
 
     def test_non_contiguous_years(self):
         self.assertEqual(MVP.format_years([2004, 2006]), "2004, 2006")
+
+    def test_public_row_hides_source_metadata(self):
+        row = {
+            "Rank": 1, "Source": "Provider", "Source URL": "https://example.test",
+            "source_key": "internal", "source": "provider", "source_url": "https://example.test",
+        }
+        self.assertEqual(MVP.public_row(row), {"Rank": 1})
+
+    def test_csv_can_write_localized_headers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ranking.csv"
+            MVP.write_csv(path, [{"Rank": 1, "Make": "ExampleMake"}], ["Rank", "Make"], MVP.OUTPUT_LABELS)
+            with path.open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.reader(handle))
+            self.assertEqual(rows[0], ["排名", "品牌"])
+            self.assertEqual(rows[1], ["1", "ExampleMake"])
 
     def test_contiguous_years(self):
         self.assertEqual(MVP.format_years([2005, 2006, 2007]), "2005-2007")

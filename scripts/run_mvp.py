@@ -19,6 +19,40 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "config"
 DATA = ROOT / "data"
+PUBLIC_HIDDEN_FIELDS = {
+    "source_key", "source", "source_url", "members", "fitment_rows", "eligible", "Source", "Source URL"
+}
+OUTPUT_LABELS = {
+    "Rank": "排名",
+    "Make": "品牌",
+    "Model": "车型",
+    "Model / Family": "车型 / 家族",
+    "Fitment Years": "适配年份",
+    "US Historical Sales": "适配年份美国历史销量",
+    "Estimated Effective Population": "估算有效保有量",
+    "Population Reference Year": "保有量估算基准年",
+    "Market Tier": "市场等级",
+    "Relative Market Size": "相对市场规模",
+    "Coverage": "销量数据覆盖率",
+    "Required Years": "所需年份数",
+    "Available Years": "已有年份数",
+    "Data Status": "数据状态",
+    "Core / Discovery": "分组",
+    "Decision Reason": "判定原因",
+    "Listing Type": "Listing 类型",
+    "Vehicle": "车型",
+    "Vehicle Family": "车型家族",
+    "Title": "标题",
+    "Compatibility Scope": "Compatibility 范围",
+    "Campaign Type": "Campaign 类型",
+    "Keyword": "关键词",
+    "Match Type": "匹配方式",
+    "Campaign Role": "Campaign 角色",
+    "Negative Keyword": "否定关键词",
+    "Reason": "原因",
+    "Years": "年份",
+    "Family": "家族",
+}
 
 CANONICAL_MODELS: dict[str, str] = {}
 
@@ -28,12 +62,12 @@ def read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def write_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
+def write_csv(path: Path, rows: list[dict], fields: list[str], labels: dict[str, str] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
+        writer = csv.writer(f)
+        writer.writerow([(labels or {}).get(field, field) for field in fields])
+        writer.writerows([[row.get(field, "") for field in fields] for row in rows])
 
 
 def clean_text(value: str) -> str:
@@ -484,10 +518,10 @@ def build_plp(
 
 
 def public_row(row: dict) -> dict:
-    return {k: v for k, v in row.items() if k not in {"source_key", "members", "fitment_rows", "eligible"}}
+    return {k: v for k, v in row.items() if k not in PUBLIC_HIDDEN_FIELDS}
 
 
-def markdown_table(rows: list[dict], fields: list[str]) -> str:
+def markdown_table(rows: list[dict], fields: list[str], labels: dict[str, str] | None = None) -> str:
     def value(row, field):
         val = row.get(field, "")
         if isinstance(val, float):
@@ -495,7 +529,8 @@ def markdown_table(rows: list[dict], fields: list[str]) -> str:
         if isinstance(val, int) and field in {"US Historical Sales", "Estimated Effective Population"}:
             return f"{val:,}"
         return str(val if val is not None else "N/A").replace("|", "\\|")
-    lines = ["| " + " | ".join(fields) + " |", "| " + " | ".join("---" for _ in fields) + " |"]
+    headers = [(labels or {}).get(field, field) for field in fields]
+    lines = ["| " + " | ".join(headers) + " |", "| " + " | ".join("---" for _ in fields) + " |"]
     lines.extend("| " + " | ".join(value(row, f) for f in fields) + " |" for row in rows)
     return "\n".join(lines)
 
@@ -507,23 +542,23 @@ def write_outputs(sku: str, ranking: list[dict], listings: list[dict], plp: list
     public_listings = [public_row(r) for r in listings]
     payload = {"vehicle_ranking": public_ranking, "listing_matrix": public_listings, "plp_matrix": plp, "negative_keywords": negatives}
     (out / "workbook_data.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    write_csv(out / "vehicle_ranking.csv", public_ranking, list(public_ranking[0]))
-    write_csv(out / "listing_matrix.csv", public_listings, list(public_listings[0]))
-    write_csv(out / "plp_matrix.csv", plp, list(plp[0]) if plp else ["SKU", "Campaign", "Campaign Type", "Ad Group", "Listing", "Vehicle", "Keyword", "Match Type", "Campaign Role"])
-    write_csv(out / "negative_keywords.csv", negatives, list(negatives[0]) if negatives else ["Campaign", "Negative Keyword", "Reason"])
+    write_csv(out / "vehicle_ranking.csv", public_ranking, list(public_ranking[0]), OUTPUT_LABELS)
+    write_csv(out / "listing_matrix.csv", public_listings, list(public_listings[0]), OUTPUT_LABELS)
+    write_csv(out / "plp_matrix.csv", plp, list(plp[0]) if plp else ["SKU", "Campaign", "Campaign Type", "Ad Group", "Listing", "Vehicle", "Keyword", "Match Type", "Campaign Role"], OUTPUT_LABELS)
+    write_csv(out / "negative_keywords.csv", negatives, list(negatives[0]) if negatives else ["Campaign", "Negative Keyword", "Reason"], OUTPUT_LABELS)
 
     sku_dir = ROOT / "sku" / sku
     sku_dir.mkdir(parents=True, exist_ok=True)
     ranking_fields = ["Rank", "Make", "Model / Family", "Fitment Years", "US Historical Sales", "Estimated Effective Population", "Market Tier", "Relative Market Size", "Coverage", "Data Status", "Core / Discovery", "Decision Reason"]
-    (sku_dir / "fitment.md").write_text("# Normalized fitment\n\n" + markdown_table([
-        {"Make": r["make"], "Model": r["model"], "Years": format_years(r["years"]), "Family": r["family"] or "-", "Source Key": r["source_key"]}
+    (sku_dir / "fitment.md").write_text("# 标准化适配\n\n" + markdown_table([
+        {"Make": r["make"], "Model": r["model"], "Years": format_years(r["years"]), "Family": r["family"] or "-"}
         for r in fitment
-    ], ["Make", "Model", "Years", "Family", "Source Key"]) + "\n", encoding="utf-8")
-    (sku_dir / "vehicle-ranking.md").write_text("# Vehicle ranking\n\n" + markdown_table(public_ranking, ranking_fields) + "\n", encoding="utf-8")
-    (sku_dir / "listing-matrix.md").write_text("# Listing matrix\n\n" + markdown_table(public_listings, ["Listing ID", "Listing Type", "Vehicle", "Title", "Compatibility Scope"]) + "\n", encoding="utf-8")
+    ], ["Make", "Model", "Years", "Family"], OUTPUT_LABELS) + "\n", encoding="utf-8")
+    (sku_dir / "vehicle-ranking.md").write_text("# 车型市场排名\n\n" + markdown_table(public_ranking, ranking_fields, OUTPUT_LABELS) + "\n", encoding="utf-8")
+    (sku_dir / "listing-matrix.md").write_text("# Listing 矩阵\n\n" + markdown_table(public_listings, ["Listing ID", "Listing Type", "Vehicle", "Title", "Compatibility Scope"], OUTPUT_LABELS) + "\n", encoding="utf-8")
     (sku_dir / "plp-matrix.md").write_text(
-        "# PLP matrix\n\n" + markdown_table(plp, ["Campaign", "Campaign Type", "Ad Group", "Listing", "Vehicle", "Keyword", "Match Type"]) +
-        "\n\nRows: " + str(len(plp)) + "\n", encoding="utf-8")
+        "# PLP 广告矩阵\n\n" + markdown_table(plp, ["Campaign", "Campaign Type", "Ad Group", "Listing", "Vehicle", "Keyword", "Match Type"], OUTPUT_LABELS) +
+        "\n\n行数：" + str(len(plp)) + "\n", encoding="utf-8")
     return out
 
 

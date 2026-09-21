@@ -26,6 +26,15 @@ DOWNLOAD_FILES = {
     "negative_keywords.csv",
     "workbook_data.json",
 }
+WORKBOOK_SUFFIX = "Listing与PLP矩阵.xlsx"
+DOWNLOAD_LABELS = {
+    "vehicle_ranking.csv": "车型市场排名 CSV",
+    "listing_matrix.csv": "Listing 矩阵 CSV",
+    "plp_matrix.csv": "PLP 广告矩阵 CSV",
+    "negative_keywords.csv": "否定关键词 CSV",
+    "workbook_data.json": "结果数据 JSON",
+}
+PUBLIC_HIDDEN_FIELDS = {"source_key", "source", "source_url", "Source", "Source URL"}
 
 
 def read_json(path: Path):
@@ -120,9 +129,12 @@ def result_payload(sku: str) -> dict:
     if not data_path.exists():
         raise FileNotFoundError("该 SKU 尚未生成结果")
     data = read_json(data_path)
-    ranking = data.get("vehicle_ranking", [])
+    ranking = [
+        {key: value for key, value in row.items() if key not in PUBLIC_HIDDEN_FIELDS}
+        for row in data.get("vehicle_ranking", [])
+    ]
     listings = data.get("listing_matrix", [])
-    workbook_name = f"{sku}-listing-plp-matrix.xlsx"
+    workbook_name = f"{sku}-{WORKBOOK_SUFFIX}"
     files = [name for name in sorted(DOWNLOAD_FILES | {workbook_name}) if (output_dir / name).exists()]
     return {
         "sku": sku,
@@ -136,7 +148,11 @@ def result_payload(sku: str) -> dict:
         },
         "vehicle_ranking": ranking,
         "listing_matrix": listings,
-        "files": [{"name": name, "url": f"/download/{sku}/{name}"} for name in files],
+        "files": [{
+            "name": name,
+            "label": "下载 Excel" if name == workbook_name else DOWNLOAD_LABELS.get(name, name),
+            "url": f"/download/{sku}/{name}",
+        } for name in files],
     }
 
 
@@ -197,7 +213,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
             sku, filename = parts[1], parts[2]
-            allowed = DOWNLOAD_FILES | {f"{sku}-listing-plp-matrix.xlsx"}
+            allowed = DOWNLOAD_FILES | {f"{sku}-{WORKBOOK_SUFFIX}"}
             if filename not in allowed or Path(filename).name != filename:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
