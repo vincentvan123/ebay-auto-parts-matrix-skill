@@ -40,6 +40,13 @@ class MvpTests(unittest.TestCase):
         title = MVP.build_title("Sample Part", "ExampleMake", ["ModelOne", "ModelTwo"], [], 80)
         self.assertEqual(title, "Sample Part for ExampleMake ModelOne ModelTwo")
 
+    def test_mixed_title_supports_multiple_makes(self):
+        title = MVP.build_mixed_title("Sample Part", [
+            {"make": "ExampleMake", "model": "ModelOne"},
+            {"make": "SecondMake", "model": "ModelTwo"},
+        ], 80)
+        self.assertEqual(title, "Sample Part for ExampleMake ModelOne SecondMake ModelTwo")
+
     def test_parse_current_table(self):
         page = "<table><tr><th>Year</th><th>Units</th></tr><tr><td>2005</td><td>168,811</td></tr><tr><td>2006</td><td>178,351</td></tr></table>"
         self.assertEqual(MVP.parse_annual_sales(page), {2005: 168811, 2006: 178351})
@@ -106,7 +113,10 @@ class MvpTests(unittest.TestCase):
         plp, negatives = MVP.build_plp("SKU100", "Sample Part", listings, True, "Phrase", "Exact")
         self.assertEqual([row["Model / Family"] for row in ranking if row["Core / Discovery"] == "Core"], ["ModelOne"])
         self.assertEqual(ranking[0]["Estimated Effective Population"], 266500)
-        self.assertEqual({row["Listing Type"] for row in listings}, {"Core", "Discovery"})
+        self.assertEqual({row["Listing Type"] for row in listings}, {"Core", "Discovery", "Mixed"})
+        mixed = next(row for row in listings if row["Listing Type"] == "Mixed")
+        self.assertEqual(mixed["Title"], "Sample Part for ExampleMake ModelOne ModelTwo")
+        self.assertFalse(any(row["Listing"] == mixed["Listing ID"] for row in plp))
         self.assertTrue(any(row["Vehicle"] == "ExampleMake ModelOne" for row in plp))
         self.assertTrue(any(row["Negative Keyword"] == "ModelTwo" for row in negatives))
         year_terms = [row for row in plp if row["Keyword"].split()[0].isdigit()]
@@ -141,6 +151,15 @@ class MvpTests(unittest.TestCase):
         self.assertEqual(ranking[0]["Estimated Effective Population"], 9500)
         self.assertEqual(ranking[0]["Core / Discovery"], "Discovery")
         self.assertIn("population below 150,000", ranking[0]["Decision Reason"])
+
+    def test_single_model_does_not_create_mixed_listing(self):
+        ranking = [{
+            "Core / Discovery": "Core", "Make": "ExampleMake", "Model / Family": "ModelOne",
+            "fitment_rows": [{"make": "ExampleMake", "model": "ModelOne", "years": [2021]}],
+        }]
+        listings = MVP.build_listings("SKU200", "Sample Part", ranking, 80)
+        self.assertEqual(len(listings), 1)
+        self.assertEqual(listings[0]["Listing Type"], "Core")
 
     def test_absolute_and_relative_core_gates_are_both_required(self):
         rules = {
@@ -177,6 +196,18 @@ class MvpTests(unittest.TestCase):
         discovery = next(row for row in listings if row["Listing Type"] == "Discovery")
         self.assertEqual(discovery["Title"], "Sample Part for ExampleMake ModelTwo ModelThree ModelFour")
         self.assertNotIn("ModelOne", discovery["Title"])
+
+    def test_all_core_models_also_create_ranked_mixed_listing(self):
+        ranking = [
+            {"Core / Discovery": "Core", "Make": "ExampleMake", "Model / Family": "Leader", "fitment_rows": [{"make": "ExampleMake", "model": "Leader", "years": [2020]}]},
+            {"Core / Discovery": "Core", "Make": "ExampleMake", "Model / Family": "RunnerUp", "fitment_rows": [{"make": "ExampleMake", "model": "RunnerUp", "years": [2021]}]},
+            {"Core / Discovery": "Core", "Make": "ExampleMake", "Model / Family": "Third", "fitment_rows": [{"make": "ExampleMake", "model": "Third", "years": [2022]}]},
+        ]
+        listings = MVP.build_listings("SKU500", "Sample Part", ranking, 80)
+        mixed = next(row for row in listings if row["Listing Type"] == "Mixed")
+        self.assertEqual(mixed["Title"], "Sample Part for ExampleMake Leader RunnerUp Third")
+        self.assertEqual(len([row for row in listings if row["Listing Type"] == "Core"]), 3)
+        self.assertEqual(mixed["Compatibility Scope"], "2020 ExampleMake Leader; 2021 ExampleMake RunnerUp; 2022 ExampleMake Third")
 
 
 if __name__ == "__main__":

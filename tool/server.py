@@ -130,6 +130,7 @@ def result_payload(sku: str) -> dict:
             "ranking_entities": len(ranking),
             "core_listings": sum(row.get("Listing Type") == "Core" for row in listings),
             "discovery_listings": sum(row.get("Listing Type") == "Discovery" for row in listings),
+            "mixed_listings": sum(row.get("Listing Type") == "Mixed" for row in listings),
             "plp_keywords": len(data.get("plp_matrix", [])),
             "data_gaps": sum(row.get("Data Status") != "Complete" for row in ranking),
         },

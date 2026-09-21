@@ -56,7 +56,7 @@ tbody tr:nth-child(even) { background: #f8fafb; }
 #fitment-table input { min-height: 34px; border-color: #ced5db; }
 .primary-action-row { justify-content: flex-end; margin-top: 16px; }
 .validation { margin-right: auto; color: var(--red); }
-.metrics { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 18px; }
+.metrics { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 18px; }
 .metric { padding: 14px 16px; border-right: 1px solid var(--line); }
 .metric:last-child { border-right: 0; }
 .metric strong { display: block; font-size: 22px; }
@@ -74,6 +74,7 @@ tbody tr:nth-child(even) { background: #f8fafb; }
 .badge { display: inline-block; min-width: 72px; padding: 3px 7px; border-radius: 4px; text-align: center; font-size: 12px; font-weight: 700; }
 .badge.core { background: #e2f0d9; color: #375623; }
 .badge.discovery { background: var(--blue-soft); color: #275d7a; }
+.badge.mixed { background: #f3e8ff; color: #6b3a83; }
 .badge.missing, .badge.partial { background: #fff2cc; color: #7f6000; }
 .busy { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .55; } }

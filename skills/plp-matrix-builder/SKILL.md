@@ -5,7 +5,7 @@ description: Build Core and Discovery eBay PLP campaign, ad-group, keyword, matc
 
 # PLP Matrix Builder
 
-1. Create one campaign per listing with deterministic names.
+1. Create one campaign per primary Core or Discovery listing with deterministic names; skip supplemental Mixed listings.
 2. Create one ad group per compatibility model.
 3. Generate model-product and make-model-product terms as Phrase match; never add the standalone word `for` to PLP keywords.
 4. Generate each configured year term as Exact match.

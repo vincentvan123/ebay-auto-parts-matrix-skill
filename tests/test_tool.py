@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -36,6 +37,28 @@ class ToolTests(unittest.TestCase):
                 "sku": "TEST-3", "core_keyword": "Part",
                 "fitments": [{"make": "ExampleMake", "model": "ModelOne", "start_year": "2015", "end_year": "2010"}],
             })
+
+    def test_result_payload_counts_mixed_separately(self):
+        sku = "TEST-MIXED-SUMMARY"
+        output_dir = TOOL.ROOT / "outputs" / sku
+        output_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            (output_dir / "workbook_data.json").write_text(json.dumps({
+                "vehicle_ranking": [],
+                "listing_matrix": [
+                    {"Listing Type": "Core"},
+                    {"Listing Type": "Discovery"},
+                    {"Listing Type": "Mixed"},
+                ],
+                "plp_matrix": [],
+            }), encoding="utf-8")
+            summary = TOOL.result_payload(sku)["summary"]
+            self.assertEqual(summary["core_listings"], 1)
+            self.assertEqual(summary["discovery_listings"], 1)
+            self.assertEqual(summary["mixed_listings"], 1)
+        finally:
+            (output_dir / "workbook_data.json").unlink(missing_ok=True)
+            output_dir.rmdir()
 
 
 if __name__ == "__main__":

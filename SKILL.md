@@ -1,6 +1,6 @@
 ---
 name: ebay-auto-parts-matrix
-description: Estimate effective vehicle population from age-adjusted U.S. sales and generate eBay auto-parts market rankings, mutually exclusive Core and Discovery listing matrices, mixed titles, PLP keyword campaigns, negative keywords, CSV files, and an Excel workbook from arbitrary SKU fitment. Use when Codex needs to process automotive compatibility data, size vehicle markets, build listing or advertising plans, or launch the bundled local Chinese web tool.
+description: Estimate effective vehicle population from age-adjusted U.S. sales and generate eBay auto-parts market rankings, Core and Discovery listing matrices, required multi-model Mixed titles, PLP keyword campaigns, negative keywords, CSV files, and an Excel workbook from arbitrary SKU fitment. Use when Codex needs to process automotive compatibility data, size vehicle markets, build listing or advertising plans, or launch the bundled local Chinese web tool.
 ---
 
 # eBay Auto Parts Matrix
@@ -31,8 +31,10 @@ For an arbitrary CSV path, run `python3 scripts/run_mvp.py --input /path/to/inpu
 - Estimate effective population only from the fitment years for the current SKU, applying configured age-based survival rates.
 - Keep missing sales explicit; never treat missing values as zero.
 - Require coverage, absolute effective-population, and relative-market thresholds before assigning Core; select no more than the configured number of Core listings.
-- Put every compatibility row in exactly one Core or Discovery listing.
-- Order Discovery title models by descending market rank.
+- Put every compatibility row in exactly one primary Core or Discovery listing.
+- When a SKU fits at least two distinct models, also create one supplemental Mixed listing covering the full fitment.
+- Order Discovery and Mixed title models by descending market rank.
+- Keep supplemental Mixed listings out of PLP so they do not compete with primary model-targeted campaigns.
 - Keep titles within the configured 80-character limit.
 - Review data gaps before using the output for live advertising decisions.
 

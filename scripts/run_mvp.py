@@ -220,6 +220,30 @@ def build_title(keyword: str, make: str, models: list[str], years: list[int], li
     return fallback
 
 
+def build_mixed_title(keyword: str, rows: list[dict], limit: int) -> str:
+    vehicles = []
+    seen = set()
+    for row in rows:
+        key = (row["make"].casefold(), row["model"].casefold())
+        if key not in seen:
+            vehicles.append((row["make"], row["model"]))
+            seen.add(key)
+    if len(vehicles) < 2:
+        raise ValueError("A mixed title requires at least two distinct vehicle models")
+
+    one_make = len({make.casefold() for make, _ in vehicles}) == 1
+    for count in range(len(vehicles), 1, -1):
+        selected = vehicles[:count]
+        if one_make:
+            vehicle_text = f"{selected[0][0]} " + " ".join(model for _, model in selected)
+        else:
+            vehicle_text = " ".join(f"{make} {model}" for make, model in selected)
+        title = f"{keyword} for {vehicle_text}"
+        if len(title) <= limit:
+            return title
+    raise ValueError(f"Cannot fit two vehicle models in a mixed title within {limit} characters")
+
+
 def normalize_fitment(sku: str, rows: list[dict[str, str]], families: list[dict[str, str]], sources: list[dict[str, str]]) -> list[dict]:
     family_map = {(r["make"].casefold(), r["model"].casefold()): r for r in families}
     source_map = {(r["make"].casefold(), r["market_entity"].casefold()): r["source_key"] for r in sources}
@@ -395,6 +419,19 @@ def build_listings(sku: str, keyword: str, ranking: list[dict], title_limit: int
     expected = {(r["make"], r["model"], y) for rank_row in ranking for r in rank_row["fitment_rows"] for y in r["years"]}
     if assigned != expected:
         raise AssertionError("Compatibility assignment is not exhaustive and mutually exclusive")
+
+    mixed_rows = [fitment_row for rank_row in ranking for fitment_row in rank_row["fitment_rows"]]
+    distinct_models = {(row["make"].casefold(), row["model"].casefold()) for row in mixed_rows}
+    if len(distinct_models) >= 2:
+        makes = {row["make"].casefold() for row in mixed_rows}
+        listing_id = f"{sku}-L{len(listings)+1:02d}"
+        listings.append({
+            "SKU": sku, "Listing ID": listing_id, "Listing Type": "Mixed",
+            "Vehicle": f"{mixed_rows[0]['make']} Mixed" if len(makes) == 1 else "Multi-Make Mixed",
+            "Vehicle Family": "",
+            "Title": build_mixed_title(keyword, mixed_rows, title_limit),
+            "Compatibility Scope": compatibility_scope(mixed_rows), "fitment_rows": mixed_rows,
+        })
     return listings
 
 
@@ -410,6 +447,8 @@ def build_plp(
     core_models = {r["model"] for listing in listings if listing["Listing Type"] == "Core" for r in listing["fitment_rows"]}
     all_models = {r["model"] for listing in listings for r in listing["fitment_rows"]}
     for listing in listings:
+        if listing["Listing Type"] == "Mixed":
+            continue
         campaign = f"{sku}-{slug(listing['Vehicle'].replace(' Discovery', ''))}-{listing['Listing Type'].upper()}"
         own_models = {r["model"] for r in listing["fitment_rows"]}
         for row in listing["fitment_rows"]:
@@ -540,7 +579,8 @@ def main() -> int:
     out = write_outputs(sku, ranking, listings, plp, negatives, fitment)
     print(json.dumps({
         "sku": sku, "input": str(input_path), "ranking_entities": len(ranking), "core_listings": sum(x["Listing Type"] == "Core" for x in listings),
-        "discovery_listings": sum(x["Listing Type"] == "Discovery" for x in listings), "plp_rows": len(plp),
+        "discovery_listings": sum(x["Listing Type"] == "Discovery" for x in listings),
+        "mixed_listings": sum(x["Listing Type"] == "Mixed" for x in listings), "plp_rows": len(plp),
         "missing_or_partial_entities": sum(x["Data Status"] != "Complete" for x in ranking), "output": str(out),
     }, ensure_ascii=False))
     return 0

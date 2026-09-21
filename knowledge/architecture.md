@@ -47,8 +47,8 @@ One row per model or configured family with fitment scope, cumulative sales, age
 
 ### Listing matrix
 
-One row per Core or make-level Discovery listing. Compatibility scopes are generated from normalized rows and are asserted to be mutually exclusive.
+One row per Core, make-level Discovery, or supplemental Mixed listing. Core and Discovery Compatibility scopes are asserted to be mutually exclusive. When the SKU has at least two distinct models, one Mixed row intentionally overlaps the primary pools and covers the complete fitment.
 
 ### PLP matrix
 
-One row per campaign, ad group, listing, vehicle, keyword, and match type. Negative keywords are a separate relation keyed by campaign.
+One row per Core/Discovery campaign, ad group, listing, vehicle, keyword, and match type. Supplemental Mixed listings do not receive PLP campaigns. Negative keywords are a separate relation keyed by campaign.

@@ -1,6 +1,7 @@
 # PLP rules
 
 - Build only CORE and DISCOVERY campaigns in MVP.
+- Do not generate a campaign for the supplemental full-fitment Mixed listing.
 - Use one campaign per listing.
 - Use one ad group per model, including inside family and Discovery listings.
 - Generate model-product, make-model-product, and optional year-make-model-product keywords.

@@ -78,12 +78,13 @@ function renderResults(data) {
   const metrics = [
     ['排名实体', data.summary.ranking_entities],
     ['Core Listing', data.summary.core_listings],
-    ['Mixed Listing', data.summary.discovery_listings],
+    ['Discovery Listing', data.summary.discovery_listings],
+    ['Mixed Listing', data.summary.mixed_listings ?? 0],
     ['PLP 关键词', data.summary.plp_keywords],
     ['数据缺口', data.summary.data_gaps],
   ];
   document.querySelector('#metrics').innerHTML = metrics.map(([label, value], index) =>
-    `<div class="metric ${index === 4 && value ? 'warning' : ''}"><strong>${value}</strong><span>${label}</span></div>`
+    `<div class="metric ${index === 5 && value ? 'warning' : ''}"><strong>${value}</strong><span>${label}</span></div>`
   ).join('');
 
   const preferred = [`${data.sku}-listing-plp-matrix.xlsx`, 'listing_matrix.csv', 'vehicle_ranking.csv'];

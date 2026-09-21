@@ -1,4 +1,4 @@
 interface:
   display_name: "Listing Matrix Builder"
-  short_description: "Build mutually exclusive Core and Discovery listings"
+  short_description: "Build Core, Discovery, and required Mixed listings"
   default_prompt: "Use $listing-matrix-builder to build the listing matrix for this ranked fitment."

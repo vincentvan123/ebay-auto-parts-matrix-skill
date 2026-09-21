@@ -12,13 +12,13 @@ Classify markets as Large at 500,000 estimated vehicles or 30% of the leader, Me
 
 ## Listing matrix
 
-Select Core entities only when they meet all three gates: minimum data coverage, minimum absolute effective population, and minimum relative size versus the largest eligible entity. Apply the configured maximum after those gates. Assign one listing to each Core model or family and group all remaining compatibility by make into Discovery listings. The two pools must be mutually exclusive and collectively complete.
+Select Core entities only when they meet all three gates: minimum data coverage, minimum absolute effective population, and minimum relative size versus the largest eligible entity. Apply the configured maximum after those gates. Assign one listing to each Core model or family and group all remaining compatibility by make into Discovery listings. These two primary pools must be mutually exclusive and collectively complete.
 
-Order models in each mixed Discovery title by market rank. Omit a combined year suffix when members have different year ranges. Keep the full compatibility scope in the output even when the title length limit omits lower-ranked models.
+For every SKU with at least two distinct compatible models, add one supplemental Mixed listing whose Compatibility covers the full fitment. Order models in Discovery and Mixed titles by market rank. Omit a combined year suffix when members have different year ranges. Keep the full compatibility scope in the output even when the title length limit omits lower-ranked models.
 
 ## PLP matrix
 
-Build deterministic campaigns per listing and model-specific ad groups. Generate model-product and make-model-product terms as Phrase match, without the standalone word `for`. Generate each configured year-make-model-product term as Exact match, then add negatives that isolate competing model intent. Deduplicate keywords case-insensitively.
+Build deterministic campaigns for primary Core and Discovery listings with model-specific ad groups. Do not create PLP campaigns for supplemental Mixed listings. Generate model-product and make-model-product terms as Phrase match, without the standalone word `for`. Generate each configured year-make-model-product term as Exact match, then add negatives that isolate competing model intent. Deduplicate keywords case-insensitively.
 
 ## Review
 
