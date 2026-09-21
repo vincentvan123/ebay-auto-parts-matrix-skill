@@ -24,7 +24,8 @@ max_characters = 80
 brand_prefix = "for"
 
 [plp]
-match_type = "Phrase"
+phrase_match_type = "Phrase"
+year_match_type = "Exact"
 include_year_keywords = true
 
 [sales]

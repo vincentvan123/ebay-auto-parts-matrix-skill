@@ -103,12 +103,26 @@ class MvpTests(unittest.TestCase):
         ]
         ranking = MVP.build_ranking("SKU100", fitment, cache, rules, sources)
         listings = MVP.build_listings("SKU100", "Sample Part", ranking, 80)
-        plp, negatives = MVP.build_plp("SKU100", "Sample Part", listings, True, "Phrase")
+        plp, negatives = MVP.build_plp("SKU100", "Sample Part", listings, True, "Phrase", "Exact")
         self.assertEqual([row["Model / Family"] for row in ranking if row["Core / Discovery"] == "Core"], ["ModelOne"])
         self.assertEqual(ranking[0]["Estimated Effective Population"], 266500)
         self.assertEqual({row["Listing Type"] for row in listings}, {"Core", "Discovery"})
         self.assertTrue(any(row["Vehicle"] == "ExampleMake ModelOne" for row in plp))
         self.assertTrue(any(row["Negative Keyword"] == "ModelTwo" for row in negatives))
+        year_terms = [row for row in plp if row["Keyword"].split()[0].isdigit()]
+        non_year_terms = [row for row in plp if not row["Keyword"].split()[0].isdigit()]
+        self.assertTrue(year_terms)
+        self.assertEqual({row["Match Type"] for row in year_terms}, {"Exact"})
+        self.assertEqual({row["Match Type"] for row in non_year_terms}, {"Phrase"})
+
+    def test_plp_without_year_terms_uses_phrase_only(self):
+        listings = [{
+            "Listing ID": "SKU400-L01", "Listing Type": "Core", "Vehicle": "ModelOne",
+            "fitment_rows": [{"make": "ExampleMake", "model": "ModelOne", "years": [2020, 2021]}],
+        }]
+        plp, _ = MVP.build_plp("SKU400", "Sample Part", listings, False, "Phrase", "Exact")
+        self.assertEqual(len(plp), 3)
+        self.assertEqual({row["Match Type"] for row in plp}, {"Phrase"})
 
     def test_small_leader_is_not_core(self):
         rules = {

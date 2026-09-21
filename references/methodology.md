@@ -18,7 +18,7 @@ Order models in each mixed Discovery title by market rank. Omit a combined year 
 
 ## PLP matrix
 
-Build deterministic campaigns per listing and model-specific ad groups. Generate make/model and configured year terms, then add negatives that isolate competing model intent. Deduplicate keywords case-insensitively.
+Build deterministic campaigns per listing and model-specific ad groups. Generate make/model terms as Phrase match and each configured model-year term as Exact match, then add negatives that isolate competing model intent. Deduplicate keywords case-insensitively.
 
 ## Review
 

@@ -398,7 +398,14 @@ def build_listings(sku: str, keyword: str, ranking: list[dict], title_limit: int
     return listings
 
 
-def build_plp(sku: str, keyword: str, listings: list[dict], include_years: bool, match_type: str) -> tuple[list[dict], list[dict]]:
+def build_plp(
+    sku: str,
+    keyword: str,
+    listings: list[dict],
+    include_years: bool,
+    phrase_match_type: str,
+    year_match_type: str,
+) -> tuple[list[dict], list[dict]]:
     plp, negatives = [], []
     core_models = {r["model"] for listing in listings if listing["Listing Type"] == "Core" for r in listing["fitment_rows"]}
     all_models = {r["model"] for listing in listings for r in listing["fitment_rows"]}
@@ -408,13 +415,17 @@ def build_plp(sku: str, keyword: str, listings: list[dict], include_years: bool,
         for row in listing["fitment_rows"]:
             ad_group = row["model"]
             terms = [
-                f"{row['model']} {keyword}", f"{row['make']} {row['model']} {keyword}",
-                f"{keyword} for {row['make']} {row['model']}",
+                (f"{row['model']} {keyword}", phrase_match_type),
+                (f"{row['make']} {row['model']} {keyword}", phrase_match_type),
+                (f"{keyword} for {row['make']} {row['model']}", phrase_match_type),
             ]
             if include_years:
-                terms.extend(f"{year} {row['make']} {row['model']} {keyword}" for year in row["years"])
+                terms.extend(
+                    (f"{year} {row['make']} {row['model']} {keyword}", year_match_type)
+                    for year in row["years"]
+                )
             seen = set()
-            for term in terms:
+            for term, match_type in terms:
                 folded = term.casefold()
                 if folded in seen:
                     continue
@@ -519,7 +530,14 @@ def main() -> int:
     if any(row["core_keyword"] != keyword for row in fitment):
         raise ValueError("All rows for one SKU must use the same core_keyword")
     listings = build_listings(sku, keyword, ranking, rules["title"]["max_characters"])
-    plp, negatives = build_plp(sku, keyword, listings, rules["plp"]["include_year_keywords"], rules["plp"]["match_type"])
+    plp, negatives = build_plp(
+        sku,
+        keyword,
+        listings,
+        rules["plp"]["include_year_keywords"],
+        rules["plp"]["phrase_match_type"],
+        rules["plp"]["year_match_type"],
+    )
     out = write_outputs(sku, ranking, listings, plp, negatives, fitment)
     print(json.dumps({
         "sku": sku, "input": str(input_path), "ranking_entities": len(ranking), "core_listings": sum(x["Listing Type"] == "Core" for x in listings),
