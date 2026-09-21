@@ -1,0 +1,4 @@
+interface:
+  display_name: "eBay Title Generator"
+  short_description: "Generate concise vehicle-focused eBay titles"
+  default_prompt: "Use $ebay-title-generator to create compliant titles for this listing matrix."

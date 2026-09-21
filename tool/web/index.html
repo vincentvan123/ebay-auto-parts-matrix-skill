@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>eBay 汽配 Listing Matrix</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>eBay 汽配 Listing Matrix</h1>
+      <p id="app-status" class="status" aria-live="polite">新建 SKU</p>
+    </div>
+    <div class="header-actions">
+      <button id="import-button" class="button secondary" type="button">导入 CSV</button>
+      <input id="csv-input" type="file" accept=".csv,text/csv" hidden>
+    </div>
+  </header>
+
+  <main>
+    <section class="input-band" aria-labelledby="input-title">
+      <div class="section-heading">
+        <div>
+          <span class="step">01</span>
+          <h2 id="input-title">产品与适配</h2>
+        </div>
+        <button id="add-row" class="icon-button" type="button" title="添加车型" aria-label="添加车型">+</button>
+      </div>
+
+      <div class="product-fields">
+        <label>SKU<input id="sku" autocomplete="off" placeholder="例如 SKU-001" maxlength="64"></label>
+        <label>产品核心关键词<input id="keyword" autocomplete="off" placeholder="输入英文产品关键词" maxlength="80"></label>
+        <label class="checkbox-label"><input id="refresh-sales" type="checkbox">强制刷新公开销量</label>
+      </div>
+
+      <div class="table-shell input-table-shell">
+        <table id="fitment-table">
+          <thead><tr><th>#</th><th>品牌 Make</th><th>车型 Model</th><th>起始年</th><th>结束年</th><th>指定年份</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="primary-action-row">
+        <span id="validation-message" class="validation" aria-live="polite"></span>
+        <button id="generate" class="button primary" type="button">生成 Listing 与广告矩阵</button>
+      </div>
+    </section>
+
+    <section id="results" class="results-band" aria-labelledby="result-title" hidden>
+      <div class="section-heading result-heading">
+        <div>
+          <span class="step">02</span>
+          <h2 id="result-title">生成结果</h2>
+        </div>
+        <div id="downloads" class="downloads"></div>
+      </div>
+
+      <div id="metrics" class="metrics"></div>
+      <div class="tabs" role="tablist">
+        <button class="tab active" type="button" data-tab="listings" role="tab">Listing Matrix</button>
+        <button class="tab" type="button" data-tab="ranking" role="tab">车型排名</button>
+      </div>
+      <div id="listings-panel" class="table-shell result-panel"></div>
+      <div id="ranking-panel" class="table-shell result-panel" hidden></div>
+    </section>
+  </main>
+
+  <template id="fitment-row-template">
+    <tr>
+      <td class="row-number"></td>
+      <td><input class="make" placeholder="品牌"></td>
+      <td><input class="model" placeholder="车型"></td>
+      <td><input class="start-year year" inputmode="numeric" placeholder="2018" maxlength="4"></td>
+      <td><input class="end-year year" inputmode="numeric" placeholder="2022" maxlength="4"></td>
+      <td><input class="years" placeholder="2018;2020"></td>
+      <td><button class="remove-row icon-button danger" type="button" title="删除车型" aria-label="删除车型">×</button></td>
+    </tr>
+  </template>
+  <script src="/app.js"></script>
+</body>
+</html>

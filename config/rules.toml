@@ -1,0 +1,18 @@
+[listing]
+max_core_listings = 6
+minimum_relative_market_share = 0.10
+minimum_sales_coverage = 0.80
+discovery_group_by = "make"
+
+[title]
+max_characters = 80
+brand_prefix = "for"
+
+[plp]
+match_type = "Phrase"
+include_year_keywords = true
+
+[sales]
+country = "US"
+cache_max_age_days = 365
+user_agent = "Mozilla/5.0 (compatible; eBay-Auto-Parts-Matrix-MVP/1.0)"

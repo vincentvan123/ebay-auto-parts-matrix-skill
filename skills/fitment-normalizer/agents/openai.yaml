@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fitment Normalizer"
+  short_description: "Normalize vehicle fitment names and years"
+  default_prompt: "Use $fitment-normalizer to normalize this SKU fitment input."

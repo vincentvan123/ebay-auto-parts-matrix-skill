@@ -1,0 +1,9 @@
+.DS_Store
+.pytest_cache/
+**/__pycache__/
+*.py[cod]
+node_modules
+outputs/*
+!outputs/.gitkeep
+sku/*/
+!sku/_template/

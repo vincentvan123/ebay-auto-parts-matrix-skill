@@ -1,0 +1,4 @@
+interface:
+  display_name: "PLP Matrix Builder"
+  short_description: "Build aligned PLP keyword and negative matrices"
+  default_prompt: "Use $plp-matrix-builder to create Core and Discovery PLP campaigns."
