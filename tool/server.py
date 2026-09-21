@@ -13,10 +13,11 @@ import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = Path(__file__).resolve().parent / "web"
+IMPORT_TEMPLATE = ROOT / "sku" / "_template" / "input.csv"
 PROCESS_LOCK = threading.Lock()
 SKU_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 DOWNLOAD_FILES = {
@@ -39,6 +40,13 @@ PUBLIC_HIDDEN_FIELDS = {"source_key", "source", "source_url", "Source", "Source 
 
 def read_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def attachment_header(filename: str) -> str:
+    ascii_name = filename.encode("ascii", "ignore").decode("ascii").replace('"', "")
+    if not ascii_name:
+        ascii_name = f"download{Path(filename).suffix}"
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
 
 
 def fetch_keyword_suggestions(keyword: str) -> list[str]:
@@ -205,7 +213,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def send_file(self, path: Path, attachment=False):
+    def send_file(self, path: Path, attachment=False, download_name: str | None = None):
         if not path.is_file():
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -215,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         if attachment:
-            self.send_header("Content-Disposition", f'attachment; filename="{path.name}"')
+            self.send_header("Content-Disposition", attachment_header(download_name or path.name))
         else:
             self.send_header("Cache-Control", "no-cache")
         self.end_headers()
@@ -223,6 +231,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/download/input-template.csv":
+            self.send_file(IMPORT_TEMPLATE, attachment=True, download_name="eBay汽配导入模板.csv")
+            return
         if parsed.path == "/api/keyword-suggestions":
             try:
                 keyword = parse_qs(parsed.query).get("keyword", [""])[0]

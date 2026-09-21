@@ -21,7 +21,8 @@ Use the bundled deterministic pipeline. Do not invent sales, compatibility, or m
 3. Run `scripts/start_tool.sh` from this skill directory.
 4. Open `http://127.0.0.1:8765`.
 5. Enter one SKU, its English product keyword, and all compatible make/model/year rows.
-6. Generate and inspect the ranking and listing matrix before downloading outputs.
+6. For CSV import, download the standard template from the import dialog before selecting the completed file.
+7. Generate and inspect the ranking and listing matrix before downloading outputs.
 
 ## Run from the command line
 

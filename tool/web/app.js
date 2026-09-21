@@ -5,6 +5,7 @@ const validationNode = document.querySelector('#validation-message');
 const resultsSection = document.querySelector('#results');
 const generateButton = document.querySelector('#generate');
 const suggestionsNode = document.querySelector('#keyword-suggestions');
+const importDialog = document.querySelector('#import-dialog');
 
 function renumberRows() {
   [...tableBody.rows].forEach((row, index) => row.querySelector('.row-number').textContent = index + 1);
@@ -172,7 +173,15 @@ function parseCsv(text) {
 }
 
 document.querySelector('#add-row').addEventListener('click', () => addRow());
-document.querySelector('#import-button').addEventListener('click', () => document.querySelector('#csv-input').click());
+document.querySelector('#import-button').addEventListener('click', () => importDialog.showModal());
+document.querySelector('#close-import-dialog').addEventListener('click', () => importDialog.close());
+document.querySelector('#choose-csv').addEventListener('click', () => {
+  importDialog.close();
+  document.querySelector('#csv-input').click();
+});
+importDialog.addEventListener('click', event => {
+  if (event.target === importDialog) importDialog.close();
+});
 document.querySelector('#csv-input').addEventListener('change', async event => {
   const file = event.target.files[0];
   if (!file) return;

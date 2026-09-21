@@ -1,4 +1,5 @@
 import importlib.util
+import csv
 import json
 from unittest.mock import patch
 import tempfile
@@ -12,6 +13,20 @@ SPEC.loader.exec_module(TOOL)
 
 
 class ToolTests(unittest.TestCase):
+    def test_import_template_matches_input_contract(self):
+        with TOOL.IMPORT_TEMPLATE.open(newline="", encoding="utf-8") as handle:
+            headers = next(csv.reader(handle))
+        self.assertEqual(headers, [
+            "sku", "core_keyword", "keyword_expansions", "make", "model",
+            "start_year", "end_year", "years",
+        ])
+
+    def test_attachment_header_supports_chinese_filename(self):
+        header = TOOL.attachment_header("eBay汽配导入模板.csv")
+        header.encode("ascii")
+        self.assertIn("filename*=UTF-8''", header)
+        self.assertIn(".csv", header)
+
     def test_validate_range_input(self):
         sku, keyword, rows, refresh = TOOL.validate_payload({
             "sku": "TEST-1", "core_keyword": "Sample Part", "refresh_sales": True,

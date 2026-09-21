@@ -69,6 +69,18 @@
     </section>
   </main>
 
+  <dialog id="import-dialog" aria-labelledby="import-dialog-title">
+    <div class="dialog-heading">
+      <h2 id="import-dialog-title">导入 CSV</h2>
+      <button id="close-import-dialog" class="icon-button" type="button" title="关闭" aria-label="关闭">×</button>
+    </div>
+    <p>首次导入请先下载标准模板，填写后再选择 CSV 文件。</p>
+    <div class="dialog-actions">
+      <a class="button template-download" href="/download/input-template.csv" download="eBay汽配导入模板.csv">下载 CSV 模板</a>
+      <button id="choose-csv" class="button primary" type="button">选择 CSV 文件</button>
+    </div>
+  </dialog>
+
   <template id="fitment-row-template">
     <tr>
       <td class="row-number"></td>
