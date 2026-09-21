@@ -1,4 +1,4 @@
 interface:
   display_name: "Vehicle Market Ranker"
-  short_description: "Rank fitment markets from annual U.S. sales"
-  default_prompt: "Use $vehicle-market-ranker to rank this SKU fitment by U.S. sales."
+  short_description: "Estimate and rank effective fitment populations"
+  default_prompt: "Use $vehicle-market-ranker to estimate and rank this SKU's effective vehicle population."

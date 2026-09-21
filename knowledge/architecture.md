@@ -43,7 +43,7 @@ One row per `source_key`, calendar year, and U.S. sales value. Each row also sto
 
 ### Vehicle ranking
 
-One row per model or configured family with fitment scope, cumulative sales, source, data coverage, rank, assigned role, and decision reason.
+One row per model or configured family with fitment scope, cumulative sales, age-adjusted effective population, market tier, source, data coverage, rank, assigned role, and decision reason.
 
 ### Listing matrix
 

@@ -104,6 +104,9 @@ function renderResults(data) {
   document.querySelector('#ranking-panel').innerHTML = renderTable(data.vehicle_ranking, [
     {key:'Rank', label:'排名'}, {key:'Make', label:'品牌'}, {key:'Model / Family', label:'车型 / 家族'},
     {key:'Fitment Years', label:'适配年份'}, {key:'US Historical Sales', label:'美国历史销量', number:true},
+    {key:'Estimated Effective Population', label:'估算有效保有量', number:true},
+    {key:'Population Reference Year', label:'估算基准年'},
+    {key:'Market Tier', label:'市场等级', badge:true}, {key:'Relative Market Size', label:'相对市场', percent:true},
     {key:'Coverage', label:'覆盖率', percent:true}, {key:'Data Status', label:'数据状态', badge:true},
     {key:'Core / Discovery', label:'分组', badge:true}, {key:'Decision Reason', label:'决策原因', long:true},
   ]);

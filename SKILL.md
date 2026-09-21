@@ -1,6 +1,6 @@
 ---
 name: ebay-auto-parts-matrix
-description: Generate eBay auto-parts vehicle market rankings, mutually exclusive Core and Discovery listing matrices, mixed titles ordered by vehicle sales rank, PLP keyword campaigns, negative keywords, CSV files, and an Excel workbook from arbitrary SKU fitment. Use when Codex needs to process automotive compatibility data, build listing or advertising plans, or launch the bundled local Chinese web tool.
+description: Estimate effective vehicle population from age-adjusted U.S. sales and generate eBay auto-parts market rankings, mutually exclusive Core and Discovery listing matrices, mixed titles, PLP keyword campaigns, negative keywords, CSV files, and an Excel workbook from arbitrary SKU fitment. Use when Codex needs to process automotive compatibility data, size vehicle markets, build listing or advertising plans, or launch the bundled local Chinese web tool.
 ---
 
 # eBay Auto Parts Matrix
@@ -28,9 +28,9 @@ For an arbitrary CSV path, run `python3 scripts/run_mvp.py --input /path/to/inpu
 ## Apply the rules
 
 - Treat every SKU independently. Never reuse another SKU's keyword or fitment.
-- Rank only the fitment years for the current SKU.
+- Estimate effective population only from the fitment years for the current SKU, applying configured age-based survival rates.
 - Keep missing sales explicit; never treat missing values as zero.
-- Select no more than the configured number of Core listings.
+- Require coverage, absolute effective-population, and relative-market thresholds before assigning Core; select no more than the configured number of Core listings.
 - Put every compatibility row in exactly one Core or Discovery listing.
 - Order Discovery title models by descending market rank.
 - Keep titles within the configured 80-character limit.

@@ -10,6 +10,21 @@ SPEC.loader.exec_module(MVP)
 
 
 class MvpTests(unittest.TestCase):
+    POPULATION_RULES = {
+        "reference_year": 2026,
+        "age_0_5_survival_rate": 0.95,
+        "age_6_10_survival_rate": 0.85,
+        "age_11_15_survival_rate": 0.65,
+        "age_16_20_survival_rate": 0.40,
+        "age_21_plus_survival_rate": 0.20,
+        "large_absolute": 500000,
+        "large_relative": 0.30,
+        "medium_absolute": 150000,
+        "medium_relative": 0.10,
+        "small_absolute": 50000,
+        "small_relative": 0.03,
+    }
+
     def test_non_contiguous_years(self):
         self.assertEqual(MVP.format_years([2004, 2006]), "2004, 2006")
 
@@ -56,8 +71,22 @@ class MvpTests(unittest.TestCase):
         cache = [{"source_key": "example-model-one", "last_updated": (date.today() - timedelta(days=366)).isoformat()}]
         self.assertEqual(MVP.sources_needing_refresh(sources, cache, 365), sources)
 
+    def test_survival_rate_age_bands(self):
+        expected = {2026: 0.95, 2021: 0.95, 2020: 0.85, 2016: 0.85, 2015: 0.65, 2011: 0.65, 2010: 0.40, 2006: 0.40, 2005: 0.20}
+        for model_year, rate in expected.items():
+            self.assertEqual(MVP.survival_rate(model_year, self.POPULATION_RULES, 2026), rate)
+
+    def test_market_tiers(self):
+        self.assertEqual(MVP.market_tier(600000, 0.20, self.POPULATION_RULES), "Large")
+        self.assertEqual(MVP.market_tier(200000, 0.20, self.POPULATION_RULES), "Medium")
+        self.assertEqual(MVP.market_tier(60000, 0.05, self.POPULATION_RULES), "Small")
+        self.assertEqual(MVP.market_tier(20000, 0.02, self.POPULATION_RULES), "Long Tail")
+
     def test_generic_pipeline(self):
-        rules = {"listing": {"minimum_sales_coverage": 0.8, "minimum_relative_market_share": 0.1, "max_core_listings": 6}}
+        rules = {
+            "listing": {"minimum_sales_coverage": 0.8, "minimum_relative_market_share": 0.1, "minimum_effective_vehicle_population": 150000, "max_core_listings": 6},
+            "vehicle_population": self.POPULATION_RULES,
+        }
         fitment = [
             {"sku": "SKU100", "core_keyword": "Sample Part", "make": "ExampleMake", "model": "ModelOne", "years": [2012, 2013], "family": "", "family_display": "", "entity": "ModelOne", "source_key": "example-model-one"},
             {"sku": "SKU100", "core_keyword": "Sample Part", "make": "ExampleMake", "model": "ModelTwo", "years": [2012, 2013], "family": "", "family_display": "", "entity": "ModelTwo", "source_key": "example-model-two"},
@@ -76,9 +105,47 @@ class MvpTests(unittest.TestCase):
         listings = MVP.build_listings("SKU100", "Sample Part", ranking, 80)
         plp, negatives = MVP.build_plp("SKU100", "Sample Part", listings, True, "Phrase")
         self.assertEqual([row["Model / Family"] for row in ranking if row["Core / Discovery"] == "Core"], ["ModelOne"])
+        self.assertEqual(ranking[0]["Estimated Effective Population"], 266500)
         self.assertEqual({row["Listing Type"] for row in listings}, {"Core", "Discovery"})
         self.assertTrue(any(row["Vehicle"] == "ExampleMake ModelOne" for row in plp))
         self.assertTrue(any(row["Negative Keyword"] == "ModelTwo" for row in negatives))
+
+    def test_small_leader_is_not_core(self):
+        rules = {
+            "listing": {"minimum_sales_coverage": 0.8, "minimum_relative_market_share": 0.1, "minimum_effective_vehicle_population": 150000, "max_core_listings": 6},
+            "vehicle_population": self.POPULATION_RULES,
+        }
+        fitment = [{"sku": "SKU200", "core_keyword": "Sample Part", "make": "ExampleMake", "model": "ModelOne", "years": [2021], "family": "", "family_display": "", "entity": "ModelOne", "source_key": "example-model-one"}]
+        cache = [{"source_key": "example-model-one", "year": "2021", "us_sales": "10000"}]
+        sources = [{"source_key": "example-model-one", "source_name": "Fixture", "source_url": "https://example.test/one"}]
+        ranking = MVP.build_ranking("SKU200", fitment, cache, rules, sources)
+        self.assertEqual(ranking[0]["Estimated Effective Population"], 9500)
+        self.assertEqual(ranking[0]["Core / Discovery"], "Discovery")
+        self.assertIn("population below 150,000", ranking[0]["Decision Reason"])
+
+    def test_absolute_and_relative_core_gates_are_both_required(self):
+        rules = {
+            "listing": {"minimum_sales_coverage": 0.8, "minimum_relative_market_share": 0.1, "minimum_effective_vehicle_population": 150000, "max_core_listings": 6},
+            "vehicle_population": self.POPULATION_RULES,
+        }
+        fitment = [
+            {"sku": "SKU300", "core_keyword": "Sample Part", "make": "ExampleMake", "model": "Leader", "years": [2021], "family": "", "family_display": "", "entity": "Leader", "source_key": "example-leader"},
+            {"sku": "SKU300", "core_keyword": "Sample Part", "make": "ExampleMake", "model": "Candidate", "years": [2021], "family": "", "family_display": "", "entity": "Candidate", "source_key": "example-candidate"},
+        ]
+        cache = [
+            {"source_key": "example-leader", "year": "2021", "us_sales": "2000000"},
+            {"source_key": "example-candidate", "year": "2021", "us_sales": "170000"},
+        ]
+        sources = [
+            {"source_key": "example-leader", "source_name": "Fixture", "source_url": "https://example.test/leader"},
+            {"source_key": "example-candidate", "source_name": "Fixture", "source_url": "https://example.test/candidate"},
+        ]
+        ranking = MVP.build_ranking("SKU300", fitment, cache, rules, sources)
+        by_model = {row["Model / Family"]: row for row in ranking}
+        self.assertEqual(by_model["Leader"]["Core / Discovery"], "Core")
+        self.assertGreater(by_model["Candidate"]["Estimated Effective Population"], 150000)
+        self.assertEqual(by_model["Candidate"]["Core / Discovery"], "Discovery")
+        self.assertIn("relative size below 10%", by_model["Candidate"]["Decision Reason"])
 
     def test_discovery_mixed_title_follows_market_rank(self):
         ranking = [

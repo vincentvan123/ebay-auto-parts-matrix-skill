@@ -1,7 +1,8 @@
 # Listing matrix rules
 
-- Rank each model or configured family by cumulative U.S. sales within its actual fitment years.
+- Rank each model or configured family by age-adjusted effective vehicle population within its actual fitment years.
 - A ranking entity is Core-eligible only when sales-data coverage meets `minimum_sales_coverage`.
+- A Core entity must reach `minimum_effective_vehicle_population` after age-based survival adjustment.
 - A Core entity must reach `minimum_relative_market_share` of the largest eligible entity.
 - Select at most `max_core_listings` Core entities.
 - Put every remaining fitment into a make-level Discovery listing.

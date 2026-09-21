@@ -161,6 +161,32 @@ def sources_needing_refresh(sources: list[dict[str, str]], cache_rows: list[dict
     return [source for source in sources if source["source_key"] not in latest or latest[source["source_key"]] < cutoff]
 
 
+def survival_rate(model_year: int, population_rules: dict, reference_year: int | None = None) -> float:
+    reference = reference_year or int(population_rules.get("reference_year", 0)) or date.today().year
+    age = max(0, reference - model_year)
+    if age <= 5:
+        return population_rules["age_0_5_survival_rate"]
+    if age <= 10:
+        return population_rules["age_6_10_survival_rate"]
+    if age <= 15:
+        return population_rules["age_11_15_survival_rate"]
+    if age <= 20:
+        return population_rules["age_16_20_survival_rate"]
+    return population_rules["age_21_plus_survival_rate"]
+
+
+def market_tier(effective_population: int | None, relative_size: float, population_rules: dict) -> str:
+    if effective_population is None:
+        return "Unknown"
+    if effective_population >= population_rules["large_absolute"] or relative_size >= population_rules["large_relative"]:
+        return "Large"
+    if effective_population >= population_rules["medium_absolute"] or relative_size >= population_rules["medium_relative"]:
+        return "Medium"
+    if effective_population >= population_rules["small_absolute"] or relative_size >= population_rules["small_relative"]:
+        return "Small"
+    return "Long Tail"
+
+
 def format_years(years: list[int]) -> str:
     years = sorted(set(years))
     groups = []
@@ -259,15 +285,24 @@ def build_ranking(sku: str, fitment: list[dict], cache_rows: list[dict[str, str]
 
     ranking = []
     min_coverage = rules["listing"]["minimum_sales_coverage"]
+    population_rules = rules["vehicle_population"]
+    reference_year = int(population_rules.get("reference_year", 0)) or date.today().year
     for (make, entity, source_key), members in grouped.items():
         required = sorted({year for member in members for year in member["years"]})
         available = [year for year in required if year in sales[source_key]]
         coverage = len(available) / len(required)
         total = sum(sales[source_key][year] for year in available) if available else None
+        effective_population = round(sum(
+            sales[source_key][year] * survival_rate(year, population_rules, reference_year)
+            for year in available
+        )) if available else None
         source = source_by_key.get(source_key, {})
         ranking.append({
             "SKU": sku, "Rank": None, "Make": make, "Model / Family": entity,
             "Fitment Years": format_years(required), "US Historical Sales": total,
+            "Estimated Effective Population": effective_population,
+            "Population Reference Year": reference_year,
+            "Market Tier": "Unknown", "Relative Market Size": 0.0,
             "Source": source.get("source_name", "Missing"), "Source URL": source.get("source_url", ""),
             "Core / Discovery": "Discovery", "Coverage": coverage,
             "Required Years": len(required), "Available Years": len(available),
@@ -277,24 +312,43 @@ def build_ranking(sku: str, fitment: list[dict], cache_rows: list[dict[str, str]
             "eligible": coverage >= min_coverage and total is not None,
         })
 
-    ranking.sort(key=lambda r: (r["US Historical Sales"] is None, -(r["US Historical Sales"] or 0), r["Make"], r["Model / Family"]))
+    ranking.sort(key=lambda r: (r["Estimated Effective Population"] is None, -(r["Estimated Effective Population"] or 0), r["Make"], r["Model / Family"]))
     for index, row in enumerate(ranking, 1):
         row["Rank"] = index
     eligible = [r for r in ranking if r["eligible"]]
-    max_sales = max((r["US Historical Sales"] for r in eligible), default=0)
+    max_population = max((r["Estimated Effective Population"] for r in eligible), default=0)
     threshold = rules["listing"]["minimum_relative_market_share"]
+    minimum_population = rules["listing"]["minimum_effective_vehicle_population"]
     max_core = rules["listing"]["max_core_listings"]
-    core = [r for r in eligible if max_sales and r["US Historical Sales"] >= max_sales * threshold][:max_core]
+    for row in ranking:
+        population = row["Estimated Effective Population"]
+        relative = population / max_population if population is not None and max_population else 0.0
+        row["Relative Market Size"] = relative
+        row["Market Tier"] = market_tier(population, relative, population_rules)
+    core = [
+        r for r in eligible
+        if r["Estimated Effective Population"] >= minimum_population
+        and r["Relative Market Size"] >= threshold
+    ][:max_core]
     core_keys = {r["source_key"] for r in core}
     for row in ranking:
         if row["source_key"] in core_keys:
             row["Core / Discovery"] = "Core"
-            row["Decision Reason"] = f"Top eligible entity; at least {threshold:.0%} of largest market"
+            row["Decision Reason"] = (
+                f"Core; estimated population {row['Estimated Effective Population']:,}, "
+                f"{row['Relative Market Size']:.1%} of largest market"
+            )
         elif not row["eligible"]:
             row["Decision Reason"] = f"Discovery pending data; coverage {row['Coverage']:.0%} below {min_coverage:.0%}"
         else:
-            relative = row["US Historical Sales"] / max_sales if max_sales else 0
-            row["Decision Reason"] = f"Discovery; relative market size {relative:.1%} or outside Core cap"
+            reasons = []
+            if row["Estimated Effective Population"] < minimum_population:
+                reasons.append(f"population below {minimum_population:,}")
+            if row["Relative Market Size"] < threshold:
+                reasons.append(f"relative size below {threshold:.0%}")
+            if not reasons:
+                reasons.append(f"outside top {max_core} Core cap")
+            row["Decision Reason"] = "Discovery; " + "; ".join(reasons)
     return ranking
 
 
@@ -389,7 +443,7 @@ def markdown_table(rows: list[dict], fields: list[str]) -> str:
         val = row.get(field, "")
         if isinstance(val, float):
             return f"{val:.1%}"
-        if isinstance(val, int) and field == "US Historical Sales":
+        if isinstance(val, int) and field in {"US Historical Sales", "Estimated Effective Population"}:
             return f"{val:,}"
         return str(val if val is not None else "N/A").replace("|", "\\|")
     lines = ["| " + " | ".join(fields) + " |", "| " + " | ".join("---" for _ in fields) + " |"]
@@ -411,7 +465,7 @@ def write_outputs(sku: str, ranking: list[dict], listings: list[dict], plp: list
 
     sku_dir = ROOT / "sku" / sku
     sku_dir.mkdir(parents=True, exist_ok=True)
-    ranking_fields = ["Rank", "Make", "Model / Family", "Fitment Years", "US Historical Sales", "Coverage", "Data Status", "Core / Discovery", "Decision Reason"]
+    ranking_fields = ["Rank", "Make", "Model / Family", "Fitment Years", "US Historical Sales", "Estimated Effective Population", "Market Tier", "Relative Market Size", "Coverage", "Data Status", "Core / Discovery", "Decision Reason"]
     (sku_dir / "fitment.md").write_text("# Normalized fitment\n\n" + markdown_table([
         {"Make": r["make"], "Model": r["model"], "Years": format_years(r["years"]), "Family": r["family"] or "-", "Source Key": r["source_key"]}
         for r in fitment
