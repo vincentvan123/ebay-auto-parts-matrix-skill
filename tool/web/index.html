@@ -30,9 +30,12 @@
 
       <div class="product-fields">
         <label>SKU<input id="sku" autocomplete="off" placeholder="例如 SKU-001" maxlength="64"></label>
-        <label>产品核心关键词<input id="keyword" autocomplete="off" placeholder="输入英文产品关键词" maxlength="80"></label>
+        <label>产品核心关键词
+          <span class="keyword-control"><input id="keyword" autocomplete="off" placeholder="输入英文产品关键词" maxlength="80"><button id="expand-keyword" class="button compact" type="button">拓展搜索词</button></span>
+        </label>
         <label class="checkbox-label"><input id="refresh-sales" type="checkbox">强制刷新公开销量</label>
       </div>
+      <div id="keyword-suggestions" class="keyword-suggestions" hidden></div>
 
       <div class="table-shell input-table-shell">
         <table id="fitment-table">

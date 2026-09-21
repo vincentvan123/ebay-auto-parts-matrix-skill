@@ -41,17 +41,49 @@ def read_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def fetch_keyword_suggestions(keyword: str) -> list[str]:
+    keyword = keyword.strip()
+    if not keyword or len(keyword) > 80:
+        raise ValueError("请先输入不超过 80 个字符的产品核心关键词")
+    result = subprocess.run([
+        "curl", "--fail", "--location", "--silent", "--show-error", "--max-time", "20",
+        "--get", "--data-urlencode", f"kwd={keyword}", "--data", "sId=0", "--data", "fmt=json",
+        "https://autosug.ebay.com/autosug",
+    ], check=True, capture_output=True, text=True, timeout=25)
+    match = re.search(r"_do\((\{.*\})\)\s*$", result.stdout, re.S)
+    if not match:
+        raise RuntimeError("暂时无法读取搜索词建议")
+    suggestions = json.loads(match.group(1)).get("res", {}).get("sug", [])
+    unique = []
+    for suggestion in suggestions:
+        clean = re.sub(r"\s+", " ", str(suggestion)).strip()
+        if clean and clean.casefold() not in {item.casefold() for item in unique}:
+            unique.append(clean)
+    return unique[:10]
+
+
 def validate_payload(payload: dict) -> tuple[str, str, list[dict], bool]:
     sku = str(payload.get("sku", "")).strip()
     keyword = str(payload.get("core_keyword", "")).strip()
     refresh = bool(payload.get("refresh_sales", False))
     fitments = payload.get("fitments")
+    expansions = payload.get("keyword_expansions", [])
     if not SKU_PATTERN.fullmatch(sku):
         raise ValueError("SKU 只能包含字母、数字、点、下划线和连字符，最长 64 位")
     if not keyword or len(keyword) > 80:
         raise ValueError("产品核心关键词不能为空，且不能超过 80 个字符")
     if not isinstance(fitments, list) or not 1 <= len(fitments) <= 500:
         raise ValueError("至少需要 1 条适配数据，单次最多 500 条")
+    if not isinstance(expansions, list) or len(expansions) > 10:
+        raise ValueError("标题扩展词格式错误，最多选择 10 个")
+    cleaned_expansions = []
+    for expansion in expansions:
+        clean = re.sub(r"\s+", " ", str(expansion)).strip()
+        if not clean or len(clean) > 80 or ";" in clean:
+            raise ValueError("每个标题扩展词必须为 1-80 个字符，且不能包含分号")
+        if clean.casefold() not in {item.casefold() for item in cleaned_expansions}:
+            cleaned_expansions.append(clean)
+    expansion_text = ";".join(cleaned_expansions)
 
     normalized = []
     for index, row in enumerate(fitments, 1):
@@ -86,6 +118,7 @@ def validate_payload(payload: dict) -> tuple[str, str, list[dict], bool]:
             "start_year": start,
             "end_year": end,
             "years": explicit,
+            "keyword_expansions": expansion_text,
         })
     return sku, keyword, normalized, refresh
 
@@ -95,7 +128,7 @@ def write_input(sku: str, rows: list[dict]) -> Path:
     sku_dir.mkdir(parents=True, exist_ok=True)
     output = sku_dir / "input.csv"
     temporary = sku_dir / "input.csv.tmp"
-    fields = ["sku", "core_keyword", "make", "model", "start_year", "end_year", "years"]
+    fields = ["sku", "core_keyword", "keyword_expansions", "make", "model", "start_year", "end_year", "years"]
     with temporary.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
@@ -117,6 +150,7 @@ def load_input(sku: str) -> dict:
     return {
         "sku": sku,
         "core_keyword": rows[0]["core_keyword"],
+        "keyword_expansions": [item for item in rows[0].get("keyword_expansions", "").split(";") if item],
         "fitments": [{key: row.get(key, "") for key in ["make", "model", "start_year", "end_year", "years"]} for row in rows],
     }
 
@@ -189,6 +223,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/keyword-suggestions":
+            try:
+                keyword = parse_qs(parsed.query).get("keyword", [""])[0]
+                self.send_json({"keyword": keyword, "suggestions": fetch_keyword_suggestions(keyword)})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            except Exception:
+                self.send_json({"error": "搜索词建议暂时不可用，请稍后重试"}, HTTPStatus.BAD_GATEWAY)
+            return
         if parsed.path == "/api/input":
             try:
                 sku = parse_qs(parsed.query).get("sku", [""])[0]

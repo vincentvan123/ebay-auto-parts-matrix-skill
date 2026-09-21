@@ -54,6 +54,25 @@ class MvpTests(unittest.TestCase):
         self.assertLessEqual(len(title), 80)
         self.assertIn("for ExampleMake", title)
 
+    def test_ranked_keyword_expansions_are_deduplicated_and_fit_limit(self):
+        title = MVP.build_title(
+            "Sample Widget", "ExampleMake", ["ModelOne"], [2010, 2011], 80,
+            keyword_expansions=["sample widget alternate name", "samplewidget assembly", "sample widget oem"],
+        )
+        self.assertEqual(
+            title,
+            "Sample Widget Alternate Name OEM for ExampleMake ModelOne 2010-2011",
+        )
+        self.assertLessEqual(len(title), 80)
+
+    def test_low_priority_expansion_is_omitted_before_vehicle(self):
+        title = MVP.build_title(
+            "Sample Part", "ExampleMake", ["VeryLongModelName"], [2020], 65,
+            keyword_expansions=["first alias", "second alias"],
+        )
+        self.assertEqual(title, "Sample Part First Alias for ExampleMake VeryLongModelName 2020")
+        self.assertLessEqual(len(title), 65)
+
     def test_family_title_can_omit_ambiguous_years(self):
         title = MVP.build_title("Sample Part", "ExampleMake", ["ModelOne", "ModelTwo"], [], 80)
         self.assertEqual(title, "Sample Part for ExampleMake ModelOne ModelTwo")
@@ -132,6 +151,7 @@ class MvpTests(unittest.TestCase):
         self.assertEqual([row["Model / Family"] for row in ranking if row["Core / Discovery"] == "Core"], ["ModelOne"])
         self.assertEqual(ranking[0]["Estimated Effective Population"], 266500)
         self.assertEqual({row["Listing Type"] for row in listings}, {"Core", "Discovery", "Mixed"})
+        self.assertTrue(all(row["Title Length"] == len(row["Title"]) <= 80 for row in listings))
         mixed = next(row for row in listings if row["Listing Type"] == "Mixed")
         self.assertEqual(mixed["Title"], "Sample Part for ExampleMake ModelOne ModelTwo")
         self.assertFalse(any(row["Listing"] == mixed["Listing ID"] for row in plp))

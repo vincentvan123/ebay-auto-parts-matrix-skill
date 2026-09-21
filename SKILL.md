@@ -43,6 +43,8 @@ For an arbitrary CSV path, run `python3 scripts/run_mvp.py --input /path/to/inpu
 - Order Discovery and Mixed title models by descending market rank.
 - Keep supplemental Mixed listings out of PLP so they do not compete with primary model-targeted campaigns.
 - Keep titles within the configured 80-character limit.
+- When keyword expansion is requested, fetch ranked eBay search suggestions, require operator selection, then merge novel words into titles in returned order.
+- Treat suggestion order as a search-habit signal rather than official search volume, and never select an unverified product attribute.
 - Review data gaps before using the output for live advertising decisions.
 
 Read [references/methodology.md](references/methodology.md) when changing ranking, title, family, or PLP behavior. Use the narrower contracts in `skills/` when modifying one pipeline stage.

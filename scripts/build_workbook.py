@@ -23,7 +23,8 @@ HEADER_LABELS = {
     "Required Years": "所需年份数", "Available Years": "已有年份数",
     "Data Status": "数据状态", "Core / Discovery": "分组", "Decision Reason": "判定原因",
     "Listing Type": "Listing 类型", "Vehicle": "车型", "Vehicle Family": "车型家族",
-    "Title": "标题", "Compatibility Scope": "Compatibility 范围",
+    "Title": "标题", "Title Length": "标题字符数", "Keyword Expansions": "已选扩展词",
+    "Compatibility Scope": "Compatibility 范围",
     "Campaign Type": "Campaign 类型", "Keyword": "关键词", "Match Type": "匹配方式",
     "Campaign Role": "Campaign 角色", "Negative Keyword": "否定关键词", "Reason": "原因",
 }

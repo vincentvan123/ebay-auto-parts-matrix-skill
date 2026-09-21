@@ -28,6 +28,8 @@ scripts/start_tool.sh
 
 打开 `http://127.0.0.1:8765`，输入 SKU、英文产品核心关键词和适配车型，也可以导入符合格式的 CSV。网页会显示车型排名与 Listing 结果，并提供 Excel、CSV 和 JSON 下载。
 
+点击“拓展搜索词”可读取按 eBay 搜索建议顺序排列的相关短语。勾选确认适用于产品的短语后，工具会去除重复词并按顺序写入标题；低优先级词在 80 字符空间不足时自动舍弃。搜索建议顺序是客户搜索习惯的参考信号，不是官方搜索量。含传感器、加热或巡航等产品属性的建议必须核实后再选择。
+
 ### 命令行
 
 ```bash
@@ -53,7 +55,7 @@ python3 scripts/run_mvp.py --input /path/to/fitment.csv --refresh-sales
 
 ## 输入规范
 
-输入 CSV 必须包含 `sku`、`core_keyword`、`make`、`model`，并填写连续的 `start_year` 与 `end_year`，或者用分号分隔的 `years`。每次只处理一个 SKU，产品类型和适配车型都没有硬编码。
+输入 CSV 必须包含 `sku`、`core_keyword`、`make`、`model`，并填写连续的 `start_year` 与 `end_year`，或者用分号分隔的 `years`。可选的 `keyword_expansions` 用分号分隔，并按优先级从高到低排列。每次只处理一个 SKU，产品类型和适配车型都没有硬编码。
 
 公共数据的来源名称、网站和内部 source key 不会出现在网页或面向用户的 Excel、CSV、Markdown、JSON 导出中。相关元数据只保留在内部缓存和刷新诊断中。导出标签优先使用中文；JSON 字段名、CSV 文件名以及 SKU、PLP、Listing、Core、Discovery、Mixed、Campaign、Ad Group、Compatibility 等稳定机器字段或行业术语保留英文。
 

@@ -16,6 +16,8 @@ Select Core entities only when they meet all three gates: minimum data coverage,
 
 For every SKU with at least two distinct compatible models, add one supplemental Mixed listing whose Compatibility covers the full fitment. Order models in Discovery and Mixed titles by market rank. Omit a combined year suffix when members have different year ranges. Keep the full compatibility scope in the output even when the title length limit omits lower-ranked models.
 
+Use eBay search suggestions as an ordered search-habit signal when the operator requests keyword expansion. Require the operator to approve suggestions before title use because suggestions may contain unverified product attributes. Merge only novel words, preserve suggestion order, keep the core keyword first, and omit lower-priority expansion words before exceeding the 80-character title limit.
+
 ## PLP matrix
 
 Build deterministic campaigns for primary Core and Discovery listings with model-specific ad groups. Do not create PLP campaigns for supplemental Mixed listings. Generate model-product and make-model-product terms as Phrase match, without the standalone word `for`. Generate each configured year-make-model-product term as Exact match, then add negatives that isolate competing model intent. Deduplicate keywords case-insensitively.

@@ -1,5 +1,6 @@
 import importlib.util
 import json
+from unittest.mock import patch
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +19,22 @@ class ToolTests(unittest.TestCase):
         })
         self.assertEqual((sku, keyword, refresh), ("TEST-1", "Sample Part", True))
         self.assertEqual(rows[0]["start_year"], "2012")
+
+    def test_validate_keyword_expansions(self):
+        _, _, rows, _ = TOOL.validate_payload({
+            "sku": "TEST-KEYWORDS", "core_keyword": "Sample Widget",
+            "keyword_expansions": ["sample widget alternate name", "Samplewidget"],
+            "fitments": [{"make": "ExampleMake", "model": "ModelOne", "start_year": "2012", "end_year": "2015"}],
+        })
+        self.assertEqual(rows[0]["keyword_expansions"], "sample widget alternate name;Samplewidget")
+
+    @patch.object(TOOL.subprocess, "run")
+    def test_fetch_keyword_suggestions_preserves_ebay_order(self, run):
+        run.return_value.stdout = '/**/AutoFill._do({"res":{"sug":["sample widget oem","sample widget alternate name"]}})'
+        self.assertEqual(
+            TOOL.fetch_keyword_suggestions("sample widget"),
+            ["sample widget oem", "sample widget alternate name"],
+        )
 
     def test_validate_explicit_years(self):
         _, _, rows, _ = TOOL.validate_payload({

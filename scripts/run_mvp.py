@@ -43,6 +43,8 @@ OUTPUT_LABELS = {
     "Vehicle": "车型",
     "Vehicle Family": "车型家族",
     "Title": "标题",
+    "Title Length": "标题字符数",
+    "Keyword Expansions": "已选扩展词",
     "Compatibility Scope": "Compatibility 范围",
     "Campaign Type": "Campaign 类型",
     "Keyword": "关键词",
@@ -72,6 +74,17 @@ def write_csv(path: Path, rows: list[dict], fields: list[str], labels: dict[str,
 
 def clean_text(value: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", value))).strip()
+
+
+def parse_keyword_expansions(value: str) -> list[str]:
+    expansions, seen = [], set()
+    for part in value.split(";"):
+        phrase = clean_text(part)
+        folded = phrase.casefold()
+        if phrase and folded not in seen:
+            expansions.append(phrase)
+            seen.add(folded)
+    return expansions
 
 
 def canonical_model(model: str) -> str:
@@ -239,22 +252,59 @@ def slug(value: str) -> str:
     return re.sub(r"-+", "-", re.sub(r"[^A-Z0-9]+", "-", value.upper())).strip("-")
 
 
-def build_title(keyword: str, make: str, models: list[str], years: list[int], limit: int, discovery: bool = False) -> str:
+def merge_keyword_expansions(keyword: str, expansions: list[str], suffix: str, limit: int) -> str:
+    """Add novel search terms in ranked order while preserving whole words."""
+    phrase = clean_text(keyword)
+    known = {token.casefold() for token in phrase.split()}
+    for expansion in expansions:
+        words = clean_text(expansion).split()
+        novel = [word for word in words if word.casefold() not in known]
+        if not novel:
+            continue
+        acronyms = {"abs", "ecu", "hid", "hvac", "led", "oe", "oem", "pcm", "tcm", "tpms"}
+        lowercase = {"and", "or", "with", "without"}
+        novel = [
+            word.upper() if word.casefold() in acronyms
+            else word.casefold() if word.casefold() in lowercase
+            else word.capitalize() if word.islower()
+            else word
+            for word in novel
+        ]
+        candidate = " ".join([phrase, *novel])
+        if len(f"{candidate} {suffix}".strip()) <= limit:
+            phrase = candidate
+            known.update(word.casefold() for word in novel)
+    return phrase
+
+
+def build_title(
+    keyword: str,
+    make: str,
+    models: list[str],
+    years: list[int],
+    limit: int,
+    discovery: bool = False,
+    keyword_expansions: list[str] | None = None,
+) -> str:
     chosen = list(models)
     suffix = format_years(years) if years else ""
     while chosen:
         vehicle = " ".join(chosen)
-        title = " ".join(part for part in [keyword, "for", make, vehicle, suffix] if part).strip()
+        vehicle_suffix = " ".join(part for part in ["for", make, vehicle, suffix] if part)
+        title_keyword = merge_keyword_expansions(keyword, keyword_expansions or [], vehicle_suffix, limit)
+        title = f"{title_keyword} {vehicle_suffix}".strip()
         if len(title) <= limit:
             return title
         chosen.pop()
-    fallback = " ".join(part for part in [keyword, "for", make, "Multiple Models" if discovery else models[0], suffix] if part)
+    vehicle_suffix = " ".join(part for part in ["for", make, "Multiple Models" if discovery else models[0], suffix] if part)
+    title_keyword = merge_keyword_expansions(keyword, keyword_expansions or [], vehicle_suffix, limit)
+    fallback = f"{title_keyword} {vehicle_suffix}".strip()
     if len(fallback) > limit:
         raise ValueError(f"Cannot generate title within {limit} characters: {fallback}")
     return fallback
 
 
-def build_mixed_title(keyword: str, rows: list[dict], limit: int) -> str:
+def build_mixed_title(keyword: str, rows: list[dict], limit: int, keyword_expansions: list[str] | None = None) -> str:
     vehicles = []
     seen = set()
     for row in rows:
@@ -272,7 +322,9 @@ def build_mixed_title(keyword: str, rows: list[dict], limit: int) -> str:
             vehicle_text = f"{selected[0][0]} " + " ".join(model for _, model in selected)
         else:
             vehicle_text = " ".join(f"{make} {model}" for make, model in selected)
-        title = f"{keyword} for {vehicle_text}"
+        vehicle_suffix = f"for {vehicle_text}"
+        title_keyword = merge_keyword_expansions(keyword, keyword_expansions or [], vehicle_suffix, limit)
+        title = f"{title_keyword} {vehicle_suffix}"
         if len(title) <= limit:
             return title
     raise ValueError(f"Cannot fit two vehicle models in a mixed title within {limit} characters")
@@ -414,7 +466,14 @@ def compatibility_scope(rows: list[dict]) -> str:
     return "; ".join(f"{format_years(row['years'])} {row['make']} {row['model']}" for row in sorted(rows, key=lambda r: (r["make"], r["model"])))
 
 
-def build_listings(sku: str, keyword: str, ranking: list[dict], title_limit: int) -> list[dict]:
+def build_listings(
+    sku: str,
+    keyword: str,
+    ranking: list[dict],
+    title_limit: int,
+    keyword_expansions: list[str] | None = None,
+) -> list[dict]:
+    keyword_expansions = keyword_expansions or []
     listings, assigned = [], set()
     core = [r for r in ranking if r["Core / Discovery"] == "Core"]
     for rank_row in core:
@@ -423,11 +482,12 @@ def build_listings(sku: str, keyword: str, ranking: list[dict], title_limit: int
         models = [row["model"] for row in rows]
         title_years = years if len({tuple(row["years"]) for row in rows}) == 1 else []
         listing_id = f"{sku}-L{len(listings)+1:02d}"
-        title = build_title(keyword, rank_row["Make"], models, title_years, title_limit)
+        title = build_title(keyword, rank_row["Make"], models, title_years, title_limit, keyword_expansions=keyword_expansions)
         listings.append({
             "SKU": sku, "Listing ID": listing_id, "Listing Type": "Core",
             "Vehicle": rank_row["Model / Family"], "Vehicle Family": rank_row["Model / Family"] if len(rows) > 1 else "",
-            "Title": title, "Compatibility Scope": compatibility_scope(rows), "fitment_rows": rows,
+            "Title": title, "Title Length": len(title), "Keyword Expansions": "; ".join(keyword_expansions),
+            "Compatibility Scope": compatibility_scope(rows), "fitment_rows": rows,
         })
         assigned.update((r["make"], r["model"], y) for r in rows for y in r["years"])
 
@@ -445,9 +505,11 @@ def build_listings(sku: str, keyword: str, ranking: list[dict], title_limit: int
         listings.append({
             "SKU": sku, "Listing ID": listing_id, "Listing Type": "Discovery",
             "Vehicle": f"{make} Discovery", "Vehicle Family": "",
-            "Title": build_title(keyword, make, models, [], title_limit, discovery=True),
+            "Title": build_title(keyword, make, models, [], title_limit, discovery=True, keyword_expansions=keyword_expansions),
+            "Keyword Expansions": "; ".join(keyword_expansions),
             "Compatibility Scope": compatibility_scope(rows), "fitment_rows": rows,
         })
+        listings[-1]["Title Length"] = len(listings[-1]["Title"])
         assigned.update((r["make"], r["model"], y) for r in rows for y in r["years"])
 
     expected = {(r["make"], r["model"], y) for rank_row in ranking for r in rank_row["fitment_rows"] for y in r["years"]}
@@ -463,9 +525,11 @@ def build_listings(sku: str, keyword: str, ranking: list[dict], title_limit: int
             "SKU": sku, "Listing ID": listing_id, "Listing Type": "Mixed",
             "Vehicle": f"{mixed_rows[0]['make']} Mixed" if len(makes) == 1 else "Multi-Make Mixed",
             "Vehicle Family": "",
-            "Title": build_mixed_title(keyword, mixed_rows, title_limit),
+            "Title": build_mixed_title(keyword, mixed_rows, title_limit, keyword_expansions),
+            "Keyword Expansions": "; ".join(keyword_expansions),
             "Compatibility Scope": compatibility_scope(mixed_rows), "fitment_rows": mixed_rows,
         })
+        listings[-1]["Title Length"] = len(listings[-1]["Title"])
     return listings
 
 
@@ -555,7 +619,7 @@ def write_outputs(sku: str, ranking: list[dict], listings: list[dict], plp: list
         for r in fitment
     ], ["Make", "Model", "Years", "Family"], OUTPUT_LABELS) + "\n", encoding="utf-8")
     (sku_dir / "vehicle-ranking.md").write_text("# 车型市场排名\n\n" + markdown_table(public_ranking, ranking_fields, OUTPUT_LABELS) + "\n", encoding="utf-8")
-    (sku_dir / "listing-matrix.md").write_text("# Listing 矩阵\n\n" + markdown_table(public_listings, ["Listing ID", "Listing Type", "Vehicle", "Title", "Compatibility Scope"], OUTPUT_LABELS) + "\n", encoding="utf-8")
+    (sku_dir / "listing-matrix.md").write_text("# Listing 矩阵\n\n" + markdown_table(public_listings, ["Listing ID", "Listing Type", "Vehicle", "Title", "Title Length", "Keyword Expansions", "Compatibility Scope"], OUTPUT_LABELS) + "\n", encoding="utf-8")
     (sku_dir / "plp-matrix.md").write_text(
         "# PLP 广告矩阵\n\n" + markdown_table(plp, ["Campaign", "Campaign Type", "Ad Group", "Listing", "Vehicle", "Keyword", "Match Type"], OUTPUT_LABELS) +
         "\n\n行数：" + str(len(plp)) + "\n", encoding="utf-8")
@@ -602,7 +666,11 @@ def main() -> int:
     keyword = fitment[0]["core_keyword"]
     if any(row["core_keyword"] != keyword for row in fitment):
         raise ValueError("All rows for one SKU must use the same core_keyword")
-    listings = build_listings(sku, keyword, ranking, rules["title"]["max_characters"])
+    expansion_values = {row.get("keyword_expansions", "").strip() for row in input_rows if row["sku"].strip() == sku}
+    if len(expansion_values) > 1:
+        raise ValueError("All rows for one SKU must use the same keyword_expansions")
+    keyword_expansions = parse_keyword_expansions(expansion_values.pop() if expansion_values else "")
+    listings = build_listings(sku, keyword, ranking, rules["title"]["max_characters"], keyword_expansions)
     plp, negatives = build_plp(
         sku,
         keyword,

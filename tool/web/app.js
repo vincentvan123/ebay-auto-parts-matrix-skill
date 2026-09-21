@@ -4,6 +4,7 @@ const statusNode = document.querySelector('#app-status');
 const validationNode = document.querySelector('#validation-message');
 const resultsSection = document.querySelector('#results');
 const generateButton = document.querySelector('#generate');
+const suggestionsNode = document.querySelector('#keyword-suggestions');
 
 function renumberRows() {
   [...tableBody.rows].forEach((row, index) => row.querySelector('.row-number').textContent = index + 1);
@@ -42,7 +43,20 @@ function setInput(data) {
   tableBody.replaceChildren();
   (data.fitments || []).forEach(addRow);
   if (!tableBody.rows.length) addRow();
+  renderKeywordSuggestions(data.keyword_expansions || [], data.keyword_expansions || []);
   statusNode.textContent = data.sku ? `已载入 ${data.sku}` : '新建 SKU';
+}
+
+function selectedKeywordExpansions() {
+  return [...suggestionsNode.querySelectorAll('input:checked')].map(input => input.value);
+}
+
+function renderKeywordSuggestions(suggestions, selected = []) {
+  const selectedSet = new Set(selected.map(value => value.toLowerCase()));
+  suggestionsNode.innerHTML = suggestions.map((suggestion, index) =>
+    `<label class="keyword-option"><input type="checkbox" value="${escapeHtml(suggestion)}" ${selectedSet.has(suggestion.toLowerCase()) ? 'checked' : ''}><span>${index + 1}. ${escapeHtml(suggestion)}</span></label>`
+  ).join('');
+  suggestionsNode.hidden = suggestions.length === 0;
 }
 
 async function fetchJson(url, options) {
@@ -100,6 +114,7 @@ function renderResults(data) {
   document.querySelector('#listings-panel').innerHTML = renderTable(data.listing_matrix, [
     {key:'Listing ID', label:'Listing ID'}, {key:'Listing Type', label:'类型', badge:true},
     {key:'Vehicle', label:'车型'}, {key:'Title', label:'标题', long:true},
+    {key:'Title Length', label:'标题字符数'},
     {key:'Compatibility Scope', label:'Compatibility', long:true},
   ]);
   document.querySelector('#ranking-panel').innerHTML = renderTable(data.vehicle_ranking, [
@@ -148,7 +163,12 @@ function parseCsv(text) {
   const required = ['sku', 'core_keyword', 'make', 'model'];
   if (required.some(key => !headers.includes(key))) throw new Error('CSV 缺少 sku、core_keyword、make 或 model 列');
   const objects = rows.map(values => Object.fromEntries(headers.map((header, index) => [header, (values[index] || '').trim()])));
-  return {sku: objects[0].sku, core_keyword: objects[0].core_keyword, fitments: objects};
+  return {
+    sku: objects[0].sku,
+    core_keyword: objects[0].core_keyword,
+    keyword_expansions: (objects[0].keyword_expansions || '').split(';').map(value => value.trim()).filter(Boolean),
+    fitments: objects,
+  };
 }
 
 document.querySelector('#add-row').addEventListener('click', () => addRow());
@@ -161,11 +181,29 @@ document.querySelector('#csv-input').addEventListener('change', async event => {
   event.target.value = '';
 });
 
+document.querySelector('#expand-keyword').addEventListener('click', async () => {
+  const button = document.querySelector('#expand-keyword');
+  const keyword = document.querySelector('#keyword').value.trim();
+  validationNode.textContent = '';
+  button.disabled = true;
+  button.textContent = '查询中...';
+  try {
+    const data = await fetchJson(`/api/keyword-suggestions?keyword=${encodeURIComponent(keyword)}`);
+    renderKeywordSuggestions(data.suggestions, selectedKeywordExpansions());
+  } catch (error) {
+    validationNode.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = '拓展搜索词';
+  }
+});
+
 generateButton.addEventListener('click', async () => {
   validationNode.textContent = '';
   const payload = {
     sku: document.querySelector('#sku').value.trim(),
     core_keyword: document.querySelector('#keyword').value.trim(),
+    keyword_expansions: selectedKeywordExpansions(),
     refresh_sales: document.querySelector('#refresh-sales').checked,
     fitments: collectFitments(),
   };
